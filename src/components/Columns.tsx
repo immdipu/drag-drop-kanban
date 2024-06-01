@@ -39,18 +39,60 @@ const Columns: FC<ColumnProps> = ({
   const highlightIndicator = (e: DragEvent) => {
     const indicators = getIndicators();
     ClearHighlights(indicators);
+    const el = getNearestIndicator(e, indicators);
+    el.element.style.opacity = "1";
   };
 
   const handleDragEnd = (e: DragEvent) => {
     const cardId = e.dataTransfer.getData("cardId");
     setDragging(false);
+    ClearHighlights();
+    const indicators = getIndicators();
+    const { element } = getNearestIndicator(e, indicators);
+
+    const before = element.dataset.before || "-1";
+    if (before === cardId) return;
+    let copy = [...data];
+    let cardToTransfer = copy.find((c) => c.id === Number(cardId));
+    if (!cardToTransfer) return;
+    cardToTransfer = { ...cardToTransfer, type };
+    copy = copy.filter((c) => c.id !== Number(cardId));
+    const moveToBack = before === "-1";
+    if (moveToBack) {
+      copy.push(cardToTransfer);
+    } else {
+      const insertAtIndex = copy.findIndex((el) => el.id === Number(before));
+      if (insertAtIndex === undefined) return;
+      copy.splice(insertAtIndex, 0, cardToTransfer);
+    }
+    setData(copy);
   };
 
   const hanldeDragLeave = (e: DragEvent) => {
+    ClearHighlights();
     setDragging(false);
   };
 
-  const getNearestIndicator = (e: DragEvent, indicators: HTMLElement[]) => {};
+  const getNearestIndicator = (e: DragEvent, indicators: HTMLElement[]) => {
+    const DISTANCE_THRESHOLD = 50;
+    const el = indicators.reduce(
+      (prev, current) => {
+        const rect = current.getBoundingClientRect();
+        const offset = e.clientY - (rect.top + DISTANCE_THRESHOLD);
+
+        if (offset < 0 && offset > prev.offset) {
+          return { offset: offset, element: current };
+        } else {
+          return prev;
+        }
+      },
+      {
+        offset: Number.NEGATIVE_INFINITY,
+        element: indicators[indicators.length - 1],
+      }
+    );
+    return el;
+  };
 
   const getIndicators = () => {
     return Array.from(
